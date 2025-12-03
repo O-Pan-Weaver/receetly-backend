@@ -2,17 +2,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 
-type TerminalRow = {
-  id: string;
-};
-
-type ReceiptRow = {
-  id: string;
-  blob_url: string;
-  created_at: string;
-  downloaded_at: string | null;
-};
-
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -21,39 +10,46 @@ export async function GET(request: Request) {
     if (!terminalPublicId) {
       return NextResponse.json(
         { error: 'Missing terminalPublicId query parameter' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // 1. Find terminal
-    const terminalRaw = await sql`
+    console.log('[latest] terminalPublicId =', terminalPublicId);
+
+    // 1. Find terminal (no TypeScript generics – just any[])
+    const terminalRows = (await sql`
       SELECT id
       FROM terminals
       WHERE public_id = ${terminalPublicId}
       LIMIT 1
-    `;
-
-    const terminalRows = terminalRaw as TerminalRow[];
+    `) as { id: string }[];
 
     if (terminalRows.length === 0) {
+      console.log(
+        '[latest] no terminal found for public_id =',
+        terminalPublicId,
+      );
       return NextResponse.json(
         { error: 'Unknown terminalPublicId' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const terminalId = terminalRows[0].id;
 
     // 2. Get latest receipt for this terminal
-    const receiptRaw = await sql`
+    const receiptRows = (await sql`
       SELECT id, blob_url, created_at, downloaded_at
       FROM receipts
       WHERE terminal_id = ${terminalId}
       ORDER BY created_at DESC
       LIMIT 1
-    `;
-
-    const receiptRows = receiptRaw as ReceiptRow[];
+    `) as {
+      id: string;
+      blob_url: string;
+      created_at: string;
+      downloaded_at: string | null;
+    }[];
 
     if (receiptRows.length === 0) {
       return NextResponse.json({ status: 'waiting' });
@@ -64,7 +60,8 @@ export async function GET(request: Request) {
     // Optional: ignore very old receipts (e.g. > 30 minutes)
     const createdAt = new Date(receipt.created_at);
     const now = new Date();
-    const ageMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+    const ageMinutes =
+      (now.getTime() - createdAt.getTime()) / (1000 * 60);
 
     if (ageMinutes > 30) {
       return NextResponse.json({ status: 'waiting' });
@@ -91,7 +88,7 @@ export async function GET(request: Request) {
     console.error('Error in /api/receipts/latest:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
