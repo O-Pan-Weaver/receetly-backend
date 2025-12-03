@@ -10,13 +10,11 @@ type LatestReceiptResponse =
   | { error: string };
 
 export default function WaitingRoomPage() {
-  // Get the current path, e.g. "/w/TEST-MAIN-1"
   const pathname = usePathname();
 
-  // Extract the terminalPublicId from the path
-  // "/w/TEST-MAIN-1" -> ["w", "TEST-MAIN-1"] -> "TEST-MAIN-1"
-  const pathParts = pathname.split('/').filter(Boolean);
-  const terminalPublicId = pathParts[1] ?? '';
+  // Extract terminalPublicId from URL, e.g. "/w/TEST-MAIN-1" -> "TEST-MAIN-1"
+  const parts = pathname.split('/').filter(Boolean);
+  const terminalPublicId = parts[1] ?? '';
 
   const [state, setState] = useState<
     'idle' | 'waiting' | 'ready' | 'error'
@@ -31,12 +29,8 @@ export default function WaitingRoomPage() {
       return;
     }
 
-    console.log(
-      '[waiting-room] terminalPublicId from path =',
-      terminalPublicId,
-    );
-
     let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
     async function checkForReceipt() {
       try {
@@ -61,31 +55,41 @@ export default function WaitingRoomPage() {
         }
 
         if (data.status === 'ready') {
+          // stop polling once a receipt is ready
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+
           setState('ready');
           setDownloadUrl(data.url);
         } else {
           setState('waiting');
         }
       } catch (err) {
-        console.error('Error checking for receipt:', err);
         if (!cancelled) {
           setState('error');
-          setErrorMessage('Something went wrong. Please try again.');
+          setErrorMessage('Something went wrong.');
         }
       }
     }
 
-    // Initial check
+    // initial check
     checkForReceipt();
 
-    // Poll every 3 seconds while waiting
-    const intervalId = setInterval(() => {
-      checkForReceipt();
+    // poll every 3 seconds while waiting
+    intervalId = setInterval(() => {
+      // if we've already shown the receipt, don't poll anymore
+      if (!cancelled && state !== 'ready') {
+        checkForReceipt();
+      }
     }, 3000);
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [terminalPublicId]);
 
@@ -97,15 +101,12 @@ export default function WaitingRoomPage() {
         </h1>
         <p className="text-sm text-slate-500 mb-6">
           Terminal ID:{' '}
-          <span className="font-mono">
-            {terminalPublicId || '(not found)'}
-          </span>
+          <span className="font-mono">{terminalPublicId}</span>
         </p>
 
         {state === 'idle' || state === 'waiting' ? (
           <>
             <div className="mb-4 flex justify-center">
-              {/* real spinning wheel */}
               <div className="w-16 h-16 rounded-full border-4 border-slate-200 border-t-slate-600 animate-spin" />
             </div>
             <p className="text-slate-700 font-medium mb-2">
@@ -132,7 +133,7 @@ export default function WaitingRoomPage() {
               Download receipt (PDF)
             </a>
             <p className="text-xs text-slate-500 mt-3">
-              This link is one-time. Save the PDF if you need it later.
+              Save the PDF if you need it later.
             </p>
           </>
         )}
@@ -143,7 +144,7 @@ export default function WaitingRoomPage() {
               Something went wrong.
             </p>
             <p className="text-xs text-slate-500 mb-4">
-              {errorMessage ?? 'Please try again or ask the cashier for help.'}
+              {errorMessage}
             </p>
           </>
         )}
