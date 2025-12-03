@@ -2,20 +2,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 type LatestReceiptResponse =
   | { status: 'waiting' }
   | { status: 'ready'; url: string }
   | { error: string };
 
-interface WaitingRoomPageProps {
-  params: {
-    terminalPublicId: string;
-  };
-}
+export default function WaitingRoomPage() {
+  // Get the current path, e.g. "/w/TEST-MAIN-1"
+  const pathname = usePathname();
 
-export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
-  const { terminalPublicId } = params;
+  // Extract the terminalPublicId from the path
+  // "/w/TEST-MAIN-1" -> ["w", "TEST-MAIN-1"] -> "TEST-MAIN-1"
+  const pathParts = pathname.split('/').filter(Boolean);
+  const terminalPublicId = pathParts[1] ?? '';
 
   const [state, setState] = useState<
     'idle' | 'waiting' | 'ready' | 'error'
@@ -24,6 +25,14 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!terminalPublicId) {
+      setState('error');
+      setErrorMessage('Missing terminal ID in URL.');
+      return;
+    }
+
+    console.log('[waiting-room] terminalPublicId from path =', terminalPublicId);
+
     let cancelled = false;
 
     async function checkForReceipt() {
@@ -85,7 +94,9 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
         </h1>
         <p className="text-sm text-slate-500 mb-6">
           Terminal ID:{' '}
-          <span className="font-mono">{terminalPublicId}</span>
+          <span className="font-mono">
+            {terminalPublicId || '(not found)'}
+          </span>
         </p>
 
         {state === 'idle' || state === 'waiting' ? (
