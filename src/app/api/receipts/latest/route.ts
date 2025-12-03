@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
     console.log('[latest] terminalPublicId =', terminalPublicId);
 
-    // 1. Find terminal (no TypeScript generics – just any[])
+    // 1. Find terminal
     const terminalRows = (await sql`
       SELECT id
       FROM terminals
@@ -24,15 +24,13 @@ export async function GET(request: Request) {
       LIMIT 1
     `) as { id: string }[];
 
+    // If terminal not found, just behave as "waiting"
     if (terminalRows.length === 0) {
       console.log(
         '[latest] no terminal found for public_id =',
         terminalPublicId,
       );
-      return NextResponse.json(
-        { error: 'Unknown terminalPublicId' },
-        { status: 404 },
-      );
+      return NextResponse.json({ status: 'waiting' });
     }
 
     const terminalId = terminalRows[0].id;
