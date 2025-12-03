@@ -31,7 +31,10 @@ export default function WaitingRoomPage() {
       return;
     }
 
-    console.log('[waiting-room] terminalPublicId from path =', terminalPublicId);
+    console.log(
+      '[waiting-room] terminalPublicId from path =',
+      terminalPublicId,
+    );
 
     let cancelled = false;
 
@@ -101,8 +104,9 @@ export default function WaitingRoomPage() {
 
         {state === 'idle' || state === 'waiting' ? (
           <>
-            <div className="animate-pulse mb-4">
-              <div className="w-16 h-16 rounded-full border-4 border-slate-200 border-t-slate-600 mx-auto" />
+            <div className="mb-4 flex justify-center">
+              {/* real spinning wheel */}
+              <div className="w-16 h-16 rounded-full border-4 border-slate-200 border-t-slate-600 animate-spin" />
             </div>
             <p className="text-slate-700 font-medium mb-2">
               Waiting for your receipt…
