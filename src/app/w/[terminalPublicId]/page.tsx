@@ -84,7 +84,8 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
           Receetly
         </h1>
         <p className="text-sm text-slate-500 mb-6">
-          Terminal ID: <span className="font-mono">{terminalPublicId}</span>
+          Terminal ID:{' '}
+          <span className="font-mono">{terminalPublicId}</span>
         </p>
 
         {state === 'idle' || state === 'waiting' ? (
