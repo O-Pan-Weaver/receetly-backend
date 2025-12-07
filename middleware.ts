@@ -1,37 +1,37 @@
 import { NextResponse, NextRequest } from 'next/server';
 
 export const config = {
-  // Protect /admin and anything under it (/admin, /admin/, /admin/whatever)
-  matcher: ['/admin/:path*'],
+  // Protect /admin and everything under it
+  matcher: ['/admin', '/admin/:path*'],
 };
 
 export function middleware(request: NextRequest) {
   const basicAuth = request.headers.get('authorization');
 
-  const username = process.env.ADMIN_USER;
-  const password = process.env.ADMIN_PASS;
+  const ADMIN_USER = process.env.ADMIN_USER;
+  const ADMIN_PASS = process.env.ADMIN_PASS;
 
-  // If env isn’t configured, block access so we don't leak admin
-  if (!username || !password) {
+  // If not configured, fail closed (you can change this to NextResponse.next() while testing)
+  if (!ADMIN_USER || !ADMIN_PASS) {
     return new NextResponse('Admin auth not configured', { status: 500 });
   }
 
   if (basicAuth) {
-    const [scheme, value] = basicAuth.split(' ');
+    const [scheme, encoded] = basicAuth.split(' ');
 
-    if (scheme === 'Basic' && value) {
-      const [user, pass] = Buffer.from(value, 'base64')
-        .toString()
-        .split(':');
+    if (scheme === 'Basic' && encoded) {
+      // Edge runtime has atob / btoa (web standard)
+      const decoded = atob(encoded); // "user:pass"
+      const [user, pass] = decoded.split(':');
 
-      if (user === username && pass === password) {
-        // Credentials are correct → allow request through
+      if (user === ADMIN_USER && pass === ADMIN_PASS) {
+        // Correct credentials → allow request through
         return NextResponse.next();
       }
     }
   }
 
-  // No auth header or bad credentials → ask browser for username/password
+  // Missing or wrong credentials → ask browser for login
   return new NextResponse('Authentication required', {
     status: 401,
     headers: {
